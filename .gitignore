@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+data/*.csv
+!data/qkd_dataset.csv
+models/*.pkl
+models/*.joblib
+
+*.log
+.DS_Store
+Thumbs.db
+/AGENTS.md

@@ -1,0 +1,2 @@
+# MVP v1 uses only the Python standard library.
+# Later ML experiments can add pandas/scikit-learn here.
