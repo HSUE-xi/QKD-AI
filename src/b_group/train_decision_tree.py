@@ -318,6 +318,67 @@ def print_classification_report(labels: list[str], matrix: list[list[int]]) -> N
         print(f"{label.rjust(width)}{precision:12.4f}{recall:12.4f}{f1:12.4f}")
 
 
+def eavesdrop_metrics(
+    actual: list[str],
+    predicted: list[str],
+    attack: str = "intercept_resend",
+    normal: str = "normal",
+    noise: str = "depolarizing_noise",
+) -> dict[str, float]:
+    """針對竊聽類別，計算抓到、漏報、與雜訊混淆等指標。"""
+
+    attack_predictions = [p for a, p in zip(actual, predicted) if a == attack]
+    attack_total = len(attack_predictions)
+    if attack_total == 0:
+        raise ValueError(f"No '{attack}' samples in the test set.")
+
+    caught = sum(p == attack for p in attack_predictions)
+    missed = sum(p == normal for p in attack_predictions)
+    as_noise = sum(p == noise for p in attack_predictions)
+    other = attack_total - caught - missed - as_noise
+
+    predicted_attack = sum(p == attack for p in predicted)
+    actual_normal = sum(a == normal for a in actual)
+    false_alarm = sum(a == normal and p == attack for a, p in zip(actual, predicted))
+
+    return {
+        "attack_total": attack_total,
+        "recall": caught / attack_total,                  # 抓到
+        "miss_rate": missed / attack_total,               # 漏報：判成 normal
+        "as_noise_rate": as_noise / attack_total,         # 判成去極化雜訊
+        "other_cause_rate": other / attack_total,         # 判成其他成因（五類才會出現）
+        "precision": caught / predicted_attack if predicted_attack else 0.0,
+        "false_alarm_rate": false_alarm / actual_normal if actual_normal else 0.0,  # normal 被判成竊聽
+    }
+
+
+def print_eavesdrop_report(title: str, metrics: dict[str, float]) -> None:
+    """印出竊聽誤判指標。"""
+
+    print(title)
+    print(f"  Actual intercept_resend blocks: {int(metrics['attack_total'])}")
+    print(f"  Recall (caught):                {metrics['recall']:.4f}")
+    print(f"  Miss rate (-> normal):          {metrics['miss_rate']:.4f}")
+    print(f"  Confused with noise:            {metrics['as_noise_rate']:.4f}")
+    print(f"  Other cause:                    {metrics['other_cause_rate']:.4f}")
+    print(f"  Precision:                      {metrics['precision']:.4f}")
+    print(f"  False alarm (normal -> attack): {metrics['false_alarm_rate']:.4f}")
+
+
+def macro_f1(matrix: list[list[int]]) -> float:
+    """每類 F1 的平均，避免筆數多的類別掩蓋少數類別。"""
+
+    scores = []
+    for index in range(len(matrix)):
+        tp = matrix[index][index]
+        predicted_total = sum(row[index] for row in matrix)
+        actual_total = sum(matrix[index])
+        precision = tp / predicted_total if predicted_total else 0.0
+        recall = tp / actual_total if actual_total else 0.0
+        scores.append(2 * precision * recall / (precision + recall) if precision + recall else 0.0)
+    return sum(scores) / len(scores)
+
+
 def parse_args() -> argparse.Namespace:
     """定義訓練腳本的命令列參數。"""
 
@@ -365,6 +426,26 @@ def main() -> None:
     print()
     print("Classification report")
     print_classification_report(labels, matrix)
+
+    # QBER 基準：相同切分、相同參數，但只給模型 qber 一個特徵。
+    baseline = SimpleDecisionTree(
+        max_depth=args.max_depth,
+        min_samples_leaf=args.min_samples_leaf,
+        feature_columns=["qber"],
+    )
+    baseline.fit(train_rows)
+    baseline_predicted = baseline.predict(test_rows)
+    baseline_matrix = confusion_matrix(labels, actual, baseline_predicted)
+    baseline_accuracy = sum(a == p for a, p in zip(actual, baseline_predicted)) / len(actual)
+
+    print()
+    print(f"{'':24}{'accuracy':>10}{'macro-F1':>10}")
+    print(f"{'Full model':24}{accuracy:10.4f}{macro_f1(matrix):10.4f}")
+    print(f"{'QBER-only baseline':24}{baseline_accuracy:10.4f}{macro_f1(baseline_matrix):10.4f}")
+    print()
+    print_eavesdrop_report("Full model", eavesdrop_metrics(actual, predicted))
+    print()
+    print_eavesdrop_report("QBER-only baseline", eavesdrop_metrics(actual, baseline_predicted))
     print()
     print("Feature importance")
     for feature, importance in model.feature_importance().items():
