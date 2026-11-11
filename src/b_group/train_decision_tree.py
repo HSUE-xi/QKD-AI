@@ -12,10 +12,12 @@ import csv
 import math
 import pickle
 import random
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).parent))
 from qkd_model import TARGET_COLUMN, SimpleDecisionTree
 
 
