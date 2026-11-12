@@ -43,10 +43,18 @@ for t in [0.0, 0.02, 0.05, 0.11]:
     print(f"門檻 {t}：誤報率 {qber_false_alarm(test_rows, t):.1%}  抓到率 {qber_recall(test_rows, t):.1%}")
 target = full["false_alarm_rate"]   # 完整模型的誤報率，5.7%
 
-candidates = sorted({row["qber"] for row in test_rows if row["label"] == "normal"})
+candidates = sorted({row["qber"] for row in train_rows if row["label"] == "normal"})
 for t in candidates:
-    if qber_false_alarm(test_rows, t) <= target:
+    if qber_false_alarm(train_rows, t) <= target:
         best_t = t
         break   # 找到第一個符合的就停下來，Python 用哪個字跳出迴圈？
 
-print(f"QBER 門檻 {best_t:.4f}：誤報率 {qber_false_alarm(test_rows, best_t):.1%}  抓到率 {qber_recall(test_rows, best_t):.1%}")
+# 協定門檻（BB84 常用 11%）
+protocol_t = 0.11
+
+print()
+print("| 方法 | 門檻 | 誤報率 | 抓到率 |")
+print("|---|---|---|---|")
+print(f"| 完整模型（決策樹，7 特徵） | — | {full['false_alarm_rate']:.1%} | {full['recall']:.1%} |")
+print(f"| QBER 門檻（訓練集挑選） | {best_t:.4f} | {qber_false_alarm(test_rows, best_t):.1%} |  {qber_recall(test_rows, best_t):.1%}|")
+print(f"| 協定門檻 | {protocol_t} |{qber_false_alarm(test_rows, protocol_t):.1%}| {qber_recall(test_rows, protocol_t):.1%}|")
