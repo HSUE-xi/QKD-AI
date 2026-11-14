@@ -76,7 +76,7 @@ for name, predicted in methods:
           f"{rate['normal']:.1%} | {overall:.1%} | {rate['depolarizing_noise']:.1%} | "
           f"{rate['polarization_drift']:.1%} | {rate['fiber_aging']:.1%} |")
 
-# 5. 混淆矩陣（許程景建議附上）
+# 5. 混淆矩陣
 for name, predicted in methods:
     print()
     print(f"{name} 混淆矩陣（列：真實，欄：預測）")
