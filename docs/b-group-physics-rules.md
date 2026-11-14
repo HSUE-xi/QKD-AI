@@ -20,3 +20,23 @@
 
 ## 限制
 竊聽和去極化雜訊的指紋很像（Z ≈ X、click_rate 正常），只差在 QBER 高低；部分攔截會把 QBER 壓低，跟去極化雜訊重疊，所以需要用模型分辨。
+以上規則是目前模擬設定下的觀察，物理解讀請 A 組一起核對。
+
+## 混淆矩陣
+```
+決策樹（7 特徵） 混淆矩陣（列：真實，欄：預測）
+                      depolarizing_noise         fiber_aging    intercept_resend              normal  polarization_drift
+  depolarizing_noise                  17                  11                  66                  16                  16
+         fiber_aging                   7                  54                   5                  53                   7
+    intercept_resend                  18                  23                  67                  11                   7
+              normal                   7                  42                   7                  63                   3
+  polarization_drift                   8                  14                  11                  38                  51
+
+梯度提升（7 特徵） 混淆矩陣（列：真實，欄：預測）
+                      depolarizing_noise         fiber_aging    intercept_resend              normal  polarization_drift
+  depolarizing_noise                  44                   5                  42                   8                  27
+         fiber_aging                   6                  40                   5                  54                  21
+    intercept_resend                  38                  13                  44                  15                  16
+              normal                  13                  28                   3                  58                  20
+  polarization_drift                  12                  12                   8                  34                  56
+  ```
