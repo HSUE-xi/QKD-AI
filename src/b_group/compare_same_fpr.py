@@ -1,5 +1,6 @@
-"""B5：在相同誤報率下，比較完整模型和 QBER 門檻偵測器抓到竊聽的比例。"""
+"""B3/B5：在相同誤報率下，比較完整模型和 QBER 門檻偵測器抓到竊聽的比例。"""
 
+import argparse
 from collections import defaultdict
 from pathlib import Path
 
@@ -26,9 +27,12 @@ def overall_false_alarm(rows, flagged):
     return sum(flag for row, flag in pairs) / len(pairs)
 
 # 1. 讀資料、切分（參數跟訓練程式一樣，才會切出同一份測試集）
-rows = load_dataset(Path("data/qkd_dataset_diagnostic.csv"))
-train_rows, test_rows = train_test_split(rows, test_size=0.25, seed=42)
+parser = argparse.ArgumentParser(description="B3/B5：協定門檻、QBER 門檻、決策樹的竊聽偵測比較")
+parser.add_argument("--input", type=Path, default=Path("data/qkd_dataset_diagnostic.csv"))
+args = parser.parse_args()
 
+rows = load_dataset(args.input)
+train_rows, test_rows = train_test_split(rows, test_size=0.25, seed=42)   
 # 2. 訓練完整模型（參數跟訓練程式預設值一樣）
 model = SimpleDecisionTree(
     max_depth=4,
@@ -67,11 +71,17 @@ methods = [
     ("協定門檻", "0.11", [row["qber"] > protocol_t for row in test_rows]),
 ]
 
-print("| 方法 | 門檻 | 竊聽檢出率 | 正常區塊誤報率 | 非竊聽整體誤報率 | 去極化 | 偏振漂移 | 光纖老化 |")
-print("|---|---|---|---|---|---|---|---|")
+# 非竊聽的類別：資料裡有哪些就列哪些
+labels = sorted({row["label"] for row in test_rows})
+non_attack = [label for label in labels if label != "intercept_resend"]
+
+header = ["方法", "門檻", "竊聽檢出率", "非竊聽整體誤報率"] + [f"{label} 誤報率" for label in non_attack]
+print("| " + " | ".join(header) + " |")
+print("|" + "---|" * len(header))
+
 for name, threshold, flagged in methods:
     rate = flag_rate_by_class(test_rows, flagged)
     overall = overall_false_alarm(test_rows, flagged)
-    print(f"| {name} | {threshold} | {rate['intercept_resend']:.1%} | {rate['normal']:.1%} | "
-          f"{overall:.1%} | {rate['depolarizing_noise']:.1%} | {rate['polarization_drift']:.1%} | "
-          f"{rate['fiber_aging']:.1%} |")
+    cells = [name, threshold, f"{rate['intercept_resend']:.1%}", f"{overall:.1%}"]
+    cells += [f"{rate[label]:.1%}" for label in non_attack]
+    print("| " + " | ".join(cells) + " |")
