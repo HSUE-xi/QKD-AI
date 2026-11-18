@@ -1,0 +1,208 @@
+{
+  "environment": {
+    "python": "3.13.9",
+    "numpy": "2.3.5",
+    "sklearn": "1.7.2"
+  },
+  "dataset_checks": {
+    "diagnostic": {
+      "rows": 2500,
+      "runs": 252,
+      "truth_pairing_checked": true,
+      "labels": {
+        "normal": 500,
+        "polarization_drift": 500,
+        "intercept_resend": 500,
+        "depolarizing_noise": 500,
+        "fiber_aging": 500
+      },
+      "test_count_min": 210.0,
+      "test_count_median": 483.0,
+      "test_count_max": 810.0,
+      "sha256": "b25f3ee7445b418d47de8c4d2d0eee3ab3ed28e3fdce6993eb36ddef36b7e4d8"
+    },
+    "intercept_sweep": {
+      "rows": 3300,
+      "runs": 1100,
+      "truth_pairing_checked": true,
+      "labels": {
+        "normal": 1300,
+        "intercept_resend": 2000
+      },
+      "test_count_min": 303.0,
+      "test_count_median": 518.0,
+      "test_count_max": 775.0,
+      "sha256": "03b8f2ae34fdca4030db5d8c3d10dcce032f7b5450b3a72230ca81037d0b8c70"
+    }
+  },
+  "actual_csv_five_fold": {
+    "qber_only": {
+      "accuracy": 0.3988,
+      "labels": [
+        "normal",
+        "depolarizing_noise",
+        "fiber_aging",
+        "polarization_drift",
+        "intercept_resend"
+      ],
+      "confusion_matrix": [
+        [
+          171,
+          5,
+          266,
+          57,
+          1
+        ],
+        [
+          7,
+          196,
+          7,
+          84,
+          206
+        ],
+        [
+          164,
+          8,
+          293,
+          34,
+          1
+        ],
+        [
+          91,
+          117,
+          79,
+          99,
+          114
+        ],
+        [
+          0,
+          202,
+          0,
+          60,
+          238
+        ]
+      ],
+      "recall": {
+        "normal": 0.342,
+        "depolarizing_noise": 0.392,
+        "fiber_aging": 0.586,
+        "polarization_drift": 0.198,
+        "intercept_resend": 0.476
+      },
+      "intercept_recall": 0.476,
+      "intercept_false_positive_rate": 0.161
+    },
+    "F7": {
+      "accuracy": 0.5344,
+      "labels": [
+        "normal",
+        "depolarizing_noise",
+        "fiber_aging",
+        "polarization_drift",
+        "intercept_resend"
+      ],
+      "confusion_matrix": [
+        [
+          208,
+          12,
+          225,
+          54,
+          1
+        ],
+        [
+          12,
+          230,
+          12,
+          23,
+          223
+        ],
+        [
+          186,
+          8,
+          268,
+          37,
+          1
+        ],
+        [
+          66,
+          26,
+          65,
+          336,
+          7
+        ],
+        [
+          0,
+          199,
+          2,
+          5,
+          294
+        ]
+      ],
+      "recall": {
+        "normal": 0.416,
+        "depolarizing_noise": 0.46,
+        "fiber_aging": 0.536,
+        "polarization_drift": 0.672,
+        "intercept_resend": 0.588
+      },
+      "intercept_recall": 0.588,
+      "intercept_false_positive_rate": 0.116
+    },
+    "REL": {
+      "accuracy": 0.714,
+      "labels": [
+        "normal",
+        "depolarizing_noise",
+        "fiber_aging",
+        "polarization_drift",
+        "intercept_resend"
+      ],
+      "confusion_matrix": [
+        [
+          367,
+          7,
+          21,
+          105,
+          0
+        ],
+        [
+          2,
+          253,
+          0,
+          6,
+          239
+        ],
+        [
+          9,
+          3,
+          456,
+          32,
+          0
+        ],
+        [
+          48,
+          7,
+          21,
+          424,
+          0
+        ],
+        [
+          0,
+          213,
+          1,
+          1,
+          285
+        ]
+      ],
+      "recall": {
+        "normal": 0.734,
+        "depolarizing_noise": 0.506,
+        "fiber_aging": 0.912,
+        "polarization_drift": 0.848,
+        "intercept_resend": 0.57
+      },
+      "intercept_recall": 0.57,
+      "intercept_false_positive_rate": 0.1195
+    }
+  }
+}

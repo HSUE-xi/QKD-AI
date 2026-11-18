@@ -6,6 +6,8 @@ __pycache__/
 
 data/*.csv
 !data/qkd_dataset.csv
+!data/qkd_dataset_diagnostic_10000.csv
+!data/qkd_dataset_intercept_sweep_10000.csv
 models/*.pkl
 models/*.joblib
 
