@@ -175,6 +175,17 @@ class CsvV1Tests(unittest.TestCase):
         self.assertGreater(float(rows[2]["x_error_rate"]), 0.08)
         self.assertEqual(rows[2]["z_error_rate"], 0)
 
+    def test_fixed_z_interception_has_phase_drift_fingerprint(self) -> None:
+        conditions = BlockConditions(
+            'fixed_z_intercept', 'intercept_resend', 0.0, 1.0,
+            intercept_fraction=0.4, eve_basis='Z',
+        )
+        row, _ = simulate_sample(1, 1, 0, conditions, 100_000, 0.5, 9, 9,
+                                 'diagnostic', random.Random(9))
+        self.assertEqual(row['z_error_rate'], 0)
+        self.assertAlmostEqual(row['x_error_rate'], 0.2, delta=0.015)
+        self.assertAlmostEqual(row['qber'], 0.1, delta=0.012)
+
     def test_loader_accepts_observables_and_rejects_truth(self) -> None:
         def csv_path(fieldnames: list[str], rows: list[dict[str, object]]) -> Mock:
             stream = io.StringIO()

@@ -76,6 +76,7 @@ class BlockConditions:
     aging_delta_db_per_km: float = 0.0
     phase_angle_rad: float = 0.0
     intercept_fraction: float = 0.0
+    eve_basis: str | None = None
 
 
 def random_bit(rng: random.Random) -> int:
@@ -118,6 +119,8 @@ def simulate_sample(
 ) -> tuple[dict[str, int | float | str], dict[str, int | float | str]]:
     """模擬一個傳輸區塊，分別回傳可觀測資料及模擬真值。"""
 
+    if conditions.eve_basis not in (None, *BASES):
+        raise ValueError("Eve basis must be Z, X, or None (random).")
     sifted: list[tuple[str, bool]] = []
     click_count = 0
     depolarized_count = 0
@@ -137,7 +140,7 @@ def simulate_sample(
 
         # Eve 攔截後以自己選的基底重送，錯基底測量得到隨機結果。
         if rng.random() < conditions.intercept_fraction:
-            eve_basis = random_basis(rng)
+            eve_basis = conditions.eve_basis or random_basis(rng)
             transmitted_bit = alice_bit if eve_basis == alice_basis else random_bit(rng)
             transmitted_basis = eve_basis
 

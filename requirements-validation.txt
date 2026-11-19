@@ -1,0 +1,5 @@
+# Optional A-group evaluation environment: Python 3.11+.
+# Core simulation and standard-library tests do not require these packages.
+numpy==2.3.5
+scikit-learn==1.7.2
+matplotlib==3.10.6
