@@ -69,6 +69,7 @@ def simulate_blocks(
     """在攔截比例 fraction 下產生 count 個獨立區塊，只回傳可觀測欄位。"""
 
     rows: list[dict[str, float]] = []
+    failed_attempts = 0
     while len(rows) < count:
         distance_km = rng.uniform(5, 25)
         conditions = BlockConditions(
@@ -86,8 +87,15 @@ def simulate_blocks(
                 0, 0, 0, conditions, photons, test_fraction,
                 block_seed, 0, "diagnostic", random.Random(block_seed),
             )
-        except ValueError:
-            continue  # 篩選位元不足時重抽，與產生器的作法一致
+        except ValueError as error:
+            failed_attempts += 1
+            if failed_attempts >= 50:
+                raise ValueError(
+                    "Could not form a valid test subset after 50 attempts; "
+                    "increase --photons-per-sample."
+                ) from error
+            continue
+        failed_attempts = 0
         rows.append({feature: float(observed[feature]) for feature in FEATURE_COLUMNS})
     return rows
 
@@ -110,7 +118,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-png", type=Path, default=REPO_DIR / "results" / "detection_vs_f.png")
     parser.add_argument("--output-csv", type=Path, default=REPO_DIR / "results" / "detection_vs_f.csv")
     parser.add_argument("--no-plot", action="store_true", help="只輸出 CSV，不需要 matplotlib")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.blocks_per_f <= 0:
+        parser.error("--blocks-per-f must be positive.")
+    if args.photons_per_sample < 2:
+        parser.error("--photons-per-sample must be at least 2.")
+    if not 0 < args.test_fraction < 1:
+        parser.error("--test-fraction must be between 0 and 1.")
+    if any(not 0 <= fraction <= 1 for fraction in args.fractions):
+        parser.error("f must be between 0 and 1.")
+    return args
 
 
 def main() -> None:
@@ -157,7 +174,9 @@ def main() -> None:
             line += f"{caught / len(blocks):12.3f} [{low:.2f},{high:.2f}]"
         results.append(record)
         print(line)
-    print("\nf = 0 那一列沒有 Eve，檢出率即為誤報率。")
+    no_eve = next((record for record in results if record["intercept_fraction"] == 0), None)
+    if no_eve is not None:
+        print("\nf = 0 那一列沒有 Eve，檢出率即為誤報率。")
 
     # 3. 輸出數據表。
     args.output_csv.parent.mkdir(parents=True, exist_ok=True)
@@ -195,9 +214,10 @@ def main() -> None:
     fig.suptitle(f"Eavesdropping detection vs. intercept fraction "
                  f"({args.blocks_per_f} blocks per f, {args.photons_per_sample} photons/block)",
                  fontsize=10)
-    ax.annotate("f = 0 (no Eve): false-alarm rate",
-                xy=(0, results[0]["full_detection_rate"]), xytext=(0.32, 0.12),
-                fontsize=8, color="0.3", arrowprops={"arrowstyle": "->", "color": "0.5"})
+    if no_eve is not None:
+        ax.annotate("f = 0 (no Eve): false-alarm rate",
+                    xy=(0, no_eve["full_detection_rate"]), xytext=(0.32, 0.12),
+                    fontsize=8, color="0.3", arrowprops={"arrowstyle": "->", "color": "0.5"})
     ax.legend(loc="lower right", fontsize=8)
 
     secondary = ax.secondary_xaxis("top", functions=(lambda f: f / 4, lambda q: q * 4))

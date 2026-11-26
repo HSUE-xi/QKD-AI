@@ -20,6 +20,7 @@ python src/b_group/train_decision_tree.py --input data/qkd_dataset_diagnostic_10
 | `feature_columns` | 模型需要的 10 個特徵名稱 |
 | `labels` | 五類標籤 |
 | `relative_features` | `True`：預測前要先算相對基準特徵 |
+| `training_metadata` | 訓練資料路徑及 SHA-256、切分種子、測試比例與測試 run ID |
 
 ## 2. 輸入特徵規格
 
@@ -58,7 +59,9 @@ for row in run:
     print(bundle["model"].predict_one(row))
 ```
 
-執行 `python load_model_example.py` 會從測試集挑一個光纖老化的 run，逐區塊印出診斷結果，可以看到點擊率越掉越多後，模型從「正常」轉成「光纖老化」。
+執行 `python load_model_example.py` 會依 `.pkl` 儲存的測試 run ID 選取樣本，並先核對 CSV 的 SHA-256。五類模型優先挑光纖老化的 run，三類模型則挑測試集的其他 run。更改 `--input`、`--seed` 或 `--test-size` 後，重新訓練的模型會保存對應設定。專案內的 CSV 使用相對路徑，方便換電腦重跑；專案外的 CSV 使用絕對路徑。資料內容改變時需還原原檔或重新訓練。
+
+舊 `.pkl` 缺少 `training_metadata` 時仍可載入。範例會明確標示無法確認展示樣本是否曾參與訓練；若要確認測試集來源，請重新訓練一次。
 
 ## 4. C 組串 demo 的建議流程
 

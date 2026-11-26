@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import math
 import pickle
 import random
@@ -298,6 +299,18 @@ def main() -> None:
 
     # 儲存模型和欄位資訊，讓後續整合時知道模型需要哪些輸入欄位。
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    repo_dir = Path(__file__).resolve().parents[2]
+    input_path = args.input.resolve()
+    dataset_path = input_path
+    if input_path.is_relative_to(repo_dir):
+        dataset_path = input_path.relative_to(repo_dir)
+    training_metadata = {
+        "dataset_path": str(dataset_path),
+        "dataset_sha256": hashlib.sha256(input_path.read_bytes()).hexdigest(),
+        "seed": args.seed,
+        "test_size": args.test_size,
+        "test_run_ids": sorted({row["run_id"] for row in test_rows}),
+    }
     with args.output.open("wb") as file:
         pickle.dump(
             {
@@ -307,6 +320,7 @@ def main() -> None:
                 "labels": labels,
                 # True 表示預測前要先對同一 run 的區塊呼叫 add_relative_features()
                 "relative_features": args.relative,
+                "training_metadata": training_metadata,
             },
             file,
         )
