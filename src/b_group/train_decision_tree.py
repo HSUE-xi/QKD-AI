@@ -19,6 +19,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
 from qkd_model import TARGET_COLUMN, SimpleDecisionTree
+from relative_features import RELATIVE_COLUMNS, add_relative_features
 
 
 # 僅使用 CSV v1 的可觀測欄位；ID、排序欄位與 A 組真值都不是特徵。
@@ -221,6 +222,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-samples-leaf", type=int, default=5)
     parser.add_argument("--test-size", type=float, default=0.25)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--relative",
+        action="store_true",
+        help="加入相對基準特徵（click_ratio、cum_z、cum_x），訓練 10 特徵模型。預測時需要同一 run 從 block 0 開始的區塊。",
+    )
     return parser.parse_args()
 
 
@@ -229,13 +235,20 @@ def main() -> None:
 
     args = parse_args()
     rows = load_dataset(args.input)
+
+    # 相對基準特徵只用同一 run 的過去與現在區塊；切分也按整個 run，所以先加再切不會洩漏。
+    feature_columns = list(FEATURE_COLUMNS)
+    if args.relative:
+        add_relative_features(rows)
+        feature_columns = FEATURE_COLUMNS + RELATIVE_COLUMNS
+
     train_rows, test_rows = train_test_split(rows, args.test_size, args.seed)
 
     # 使用簡易決策樹完成 MVP；後續可替換成 scikit-learn 的 DecisionTreeClassifier。
     model = SimpleDecisionTree(
         max_depth=args.max_depth,
         min_samples_leaf=args.min_samples_leaf,
-        feature_columns=FEATURE_COLUMNS,
+        feature_columns=feature_columns,
     )
     model.fit(train_rows)
 
@@ -250,7 +263,7 @@ def main() -> None:
     print(f"Rows: {len(rows)}")
     print(f"Train rows: {len(train_rows)}")
     print(f"Test rows: {len(test_rows)}")
-    print(f"Features: {', '.join(FEATURE_COLUMNS)}")
+    print(f"Features: {', '.join(feature_columns)}")
     print(f"Accuracy: {accuracy:.4f}")
     print()
     print("Confusion matrix")
@@ -289,9 +302,11 @@ def main() -> None:
         pickle.dump(
             {
                 "model": model,
-                "feature_columns": FEATURE_COLUMNS,
+                "feature_columns": feature_columns,
                 "target_column": TARGET_COLUMN,
                 "labels": labels,
+                # True 表示預測前要先對同一 run 的區塊呼叫 add_relative_features()
+                "relative_features": args.relative,
             },
             file,
         )

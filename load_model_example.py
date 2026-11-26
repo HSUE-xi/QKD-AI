@@ -1,25 +1,53 @@
+"""載入 B 組模型並預測的範例（給 C 組串 demo 用）。
+
+先訓練，產生 models/decision_tree_qkd.pkl：
+- 展示模型（10 特徵）：python src/b_group/train_decision_tree.py --input data/qkd_dataset_diagnostic_10000.csv --relative
+- 舊版（7 特徵）：    python src/b_group/train_decision_tree.py --input data/qkd_dataset_diagnostic_10000.csv
+
+再執行：python load_model_example.py
+"""
+
 import pickle
 import sys
 from pathlib import Path
 
 REPO_DIR = Path(__file__).parent
-# 讓 Python 也去 src/b_group 找 qkd_model.py
+# 讓 Python 也去 src/b_group 找 qkd_model.py、relative_features.py、train_decision_tree.py
 sys.path.insert(0, str(REPO_DIR / "src" / "b_group"))
+
+from relative_features import add_relative_features
+from train_decision_tree import load_dataset, train_test_split
+
+# 給人看的顯示名稱；程式和 CSV 的標籤字串不改
+DISPLAY_NAME = {
+    "normal": "正常",
+    "depolarizing_noise": "去極化雜訊",
+    "fiber_aging": "光纖老化",
+    "polarization_drift": "Z 軸相位型漂移",
+    "intercept_resend": "QBER 異常（可能竊聽）",
+}
 
 with open(REPO_DIR / "models" / "decision_tree_qkd.pkl", "rb") as f:
     bundle = pickle.load(f)
 
-sample = {
-    "qber": 0.125,
-    "z_error_rate": 0.107143,
-    "x_error_rate": 0.15,
-    "click_rate": 0.47,
-    "test_count": 33,
-    "z_test_count": 23,
-    "x_test_count": 10,
-}
 model = bundle["model"]
-print(bundle["labels"])
-print(bundle["feature_columns"])
-result = model.predict_one(sample)
-print("預測結果：", result)
+uses_relative = bundle.get("relative_features", False)   # 舊的 .pkl 沒有這個鍵，代表 7 特徵模型
+print("模型需要的特徵：", bundle["feature_columns"])
+print("需要相對基準特徵：", uses_relative)
+
+# 取一個完整的 run（從 block 0 開始的所有區塊）。真實 demo 時，這裡換成系統即時收到的區塊。
+# 用跟訓練時相同的切分，只從「測試集」挑 run，避免展示模型訓練時看過的資料。
+rows = load_dataset(REPO_DIR / "data" / "qkd_dataset_diagnostic_10000.csv")
+_, test_rows = train_test_split(rows, test_size=0.25, seed=42)
+run_id = next(row["run_id"] for row in test_rows if row["label"] == "fiber_aging")
+run = [row for row in test_rows if row["run_id"] == run_id]
+
+# 10 特徵模型：預測前先對「整個 run」算相對特徵（需要 block 0 當基準、只用過去與現在的區塊）
+if uses_relative:
+    add_relative_features(run)
+
+print()
+print(f"run {run_id} 的逐區塊診斷：")
+for row in sorted(run, key=lambda row: row["block_index"]):
+    predicted = model.predict_one(row)
+    print(f"  block {row['block_index']}：預測 {DISPLAY_NAME[predicted]}（真實 {DISPLAY_NAME[row['label']]}）")
