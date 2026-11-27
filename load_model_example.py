@@ -7,6 +7,7 @@
 再執行：python load_model_example.py
 """
 
+import hashlib
 import pickle
 import sys
 from pathlib import Path
@@ -35,11 +36,29 @@ uses_relative = bundle.get("relative_features", False)   # 舊的 .pkl 沒有這
 print("模型需要的特徵：", bundle["feature_columns"])
 print("需要相對基準特徵：", uses_relative)
 
-# 取一個完整的 run（從 block 0 開始的所有區塊）。真實 demo 時，這裡換成系統即時收到的區塊。
-# 用跟訓練時相同的切分，只從「測試集」挑 run，避免展示模型訓練時看過的資料。
-rows = load_dataset(REPO_DIR / "data" / "qkd_dataset_diagnostic_10000.csv")
-_, test_rows = train_test_split(rows, test_size=0.25, seed=42)
-run_id = next(row["run_id"] for row in test_rows if row["label"] == "fiber_aging")
+# 優先依模型紀錄的資料版本與測試 run 選取展示樣本。
+metadata = bundle.get("training_metadata")
+if metadata is not None:
+    dataset_path = Path(metadata["dataset_path"])
+    if not dataset_path.is_absolute():
+        dataset_path = REPO_DIR / dataset_path
+    if hashlib.sha256(dataset_path.read_bytes()).hexdigest() != metadata["dataset_sha256"]:
+        raise ValueError("Demo dataset differs from training data; restore it or retrain the model.")
+    rows = load_dataset(dataset_path)
+    test_run_ids = set(metadata["test_run_ids"])
+    test_rows = [row for row in rows if row["run_id"] in test_run_ids]
+else:
+    print("舊模型未記錄資料來源與測試切分，以下僅示範載入及預測，無法確認樣本是否未參與訓練。")
+    rows = load_dataset(REPO_DIR / "data" / "qkd_dataset_diagnostic_10000.csv")
+    _, test_rows = train_test_split(rows, test_size=0.25, seed=42)
+
+if not test_rows:
+    raise ValueError("No held-out runs found in the demo dataset.")
+# 五類資料優先展示光纖老化；三類模型使用測試集的其他 run。
+run_id = next(
+    (row["run_id"] for row in test_rows if row["label"] == "fiber_aging"),
+    test_rows[0]["run_id"],
+)
 run = [row for row in test_rows if row["run_id"] == run_id]
 
 # 10 特徵模型：預測前先對「整個 run」算相對特徵（需要 block 0 當基準、只用過去與現在的區塊）
